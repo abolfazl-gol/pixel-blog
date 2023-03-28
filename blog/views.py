@@ -18,15 +18,23 @@ class Authe(APIView):
     except IntegrityError:
       return Response({"status": status.HTTP_409_CONFLICT, "error":"phone already exists"})
     except Exception as err:
-      print('error:', err)
       return Response({'status': status.HTTP_400_BAD_REQUEST, 'error': str(err)})
 
 
 class Post(APIView):
   # permission_classes = (Authenticate,)
+
   def get(self, req):
+    # print('req: ', req.META.get('HTTP_AUTHORIZATION'))
     posts = Posts.objects.filter(author_id=1)
-    posts = PostSerializer(posts, many=True).data
+    serialized_posts = PostSerializer(posts, many=True).data
+    
+    posts = []
+    for post in serialized_posts:
+      post = dict(post)
+      likes_count = PostLikes.objects.filter(post_id=post['id']).count()
+      post['likes_count'] = likes_count
+      posts.append(post)
 
     return Response({'status': status.HTTP_200_OK, 'posts': posts})
 
@@ -68,6 +76,8 @@ class Post(APIView):
       return Response(status=status.HTTP_400_BAD_REQUEST)
     
 class Comment(APIView):
+  # permission_classes = (Authenticate,)
+
   def get(self, req, post_id=None):
     try:
       comments = Comments.objects.filter(post_id=post_id)
