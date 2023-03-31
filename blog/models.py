@@ -8,7 +8,6 @@ class Posts(models.Model):
   title = models.CharField(max_length=255)
   content = models.TextField()
   subject = models.CharField(max_length=255)
-  image = models.ImageField()
   author = models.ForeignKey(User, on_delete=models.CASCADE)
   created_at = models.DateTimeField(auto_now_add=True)
   updated_at = models.DateTimeField(auto_now=True)
@@ -37,3 +36,11 @@ class PostLikes(models.Model):
 
   class Meta:
     unique_together = ('user_id', 'post_id')
+
+class Images(models.Model):
+  title = models.CharField(max_length=255)
+  image = models.ImageField(upload_to='images/')
+  post = models.ForeignKey(Posts, db_column='post_id', on_delete=models.CASCADE)
+
+  def __str__(self):
+    return self.title
