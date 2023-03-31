@@ -22,11 +22,14 @@ class Authe(APIView):
 
 
 class Post(APIView):
-  # permission_classes = (Authenticate,)
+  permission_classes = (Authenticate,)
 
   def get(self, req):
-    # print('req: ', req.META.get('HTTP_AUTHORIZATION'))
-    posts = Posts.objects.filter(author_id=1)
+    page = 1 if 'page' not in req.GET else int(req.GET['page'])
+    size = 20 if 'size' not in req.GET else int(req.GET['size'])
+    if size > 50: size = 50
+
+    posts = Posts.objects.filter(author_id=req.user.id)
     serialized_posts = PostSerializer(posts, many=True).data
     
     posts = []
@@ -34,13 +37,19 @@ class Post(APIView):
       post = dict(post)
       likes_count = PostLikes.objects.filter(post_id=post['id']).count()
       post['likes_count'] = likes_count
+
+      comments = Comments.objects.filter(post_id=post['id']).order_by('id')[page:size]
+      total_records = Comments.objects.filter(post_id=post['id']).count()
+      pages = total_records // size
+      if total_records % size > 0: pages +=1
+      post['comments'] = {'total_records': total_records,'pages': pages,'itmes':CommentSerializer(comments, many=True).data}
+
       posts.append(post)
 
     return Response({'status': status.HTTP_200_OK, 'posts': posts})
 
   def post(self, req):
-    print('user: ', req)
-    post = Posts.objects.create(author_id=1 , **req.data)
+    post = Posts.objects.create(author_id=req.user.id , **req.data)
     post = PostSerializer(post).data
 
     return Response({'status': status.HTTP_201_CREATED, 'posts': post})
@@ -76,23 +85,31 @@ class Post(APIView):
       return Response(status=status.HTTP_400_BAD_REQUEST)
     
 class Comment(APIView):
-  # permission_classes = (Authenticate,)
+  permission_classes = (Authenticate,)
 
   def get(self, req, post_id=None):
-    try:
-      comments = Comments.objects.filter(post_id=post_id)
-      comments = CommentSerializer(comments, many=True).data
+    page = 1 if 'page' not in req.GET else int(req.GET['page'])
+    size = 20 if 'size' not in req.GET else int(req.GET['size'])
+    if size > 50: size = 50
 
-      return Response({'status': status.HTTP_200_OK, 'comments': comments})
+    try:
+      comments = Comments.objects.filter(post_id=post_id).order_by('id')[page:size]
+      comments = CommentSerializer(comments, many=True).data
+      
+      total_records = Comments.objects.filter(post_id=post_id).count()
+      pages = total_records // size
+      if total_records % size > 0: pages +=1
+
+      return Response({'status': status.HTTP_200_OK, 'total_records': total_records,'pages': pages,'itmes':comments})
     except Comments.DoesNotExist:
       return Response({'status': status.HTTP_404_NOT_FOUND, 'error': 'post id not found'})
     except Exception as err:
       return Response({'status': status.HTTP_400_BAD_REQUEST, 'error': str(err)})
   
   def post(self, req, post_id=None):
-    comment = Comments.objects.create(user_id= 1, post_id=post_id , **req.data)
+    comment = Comments.objects.create(user_id= req.user.id, post_id=post_id , **req.data)
     comment = CommentSerializer(comment).data
-
+    print('post:', comment['post'])
     return Response({'status': status.HTTP_201_CREATED, 'comment': comment})
   
   def put(self, req, comment_id=None):
@@ -114,7 +131,7 @@ class Comment(APIView):
   def delete(self, req, comment_id):
     if comment_id is not None:
       try:
-        Comments.objects.get(id=comment_id).delete()
+        Comments.objects.get(id=comment_id, user_id=req.user.id).delete()
         return Response(status=status.HTTP_200_OK)
       except Comments.DoesNotExist:
         return Response({'status': status.HTTP_404_NOT_FOUND, 'error': 'comment not found'})
@@ -126,11 +143,11 @@ class Comment(APIView):
 
 class PostLike(APIView):
   def post(self, req, post_id):
-    # user_id = req.user
-    post_like = PostLikes.objects.filter(post_id=post_id, user_id=1)
+    user_id = req.user.id
+    post_like = PostLikes.objects.filter(post_id=post_id, user_id=user_id)
     if len(post_like) == 0:
-      PostLikes.objects.create(post_id=post_id, user_id=1)
+      PostLikes.objects.create(post_id=post_id, user_id=user_id)
       return Response(status=status.HTTP_200_OK)
     else:
-      PostLikes.objects.get(post_id=post_id, user_id=1).delete()
+      PostLikes.objects.get(post_id=post_id, user_id=user_id).delete()
       return Response(status=status.HTTP_200_OK)
