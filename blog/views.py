@@ -22,11 +22,14 @@ class AutheView(APIView):
       return Response({'status': status.HTTP_400_BAD_REQUEST, 'error': str(err)})
 
   def put(self, req):
-    User.objects.filter(id=req.user.id).update(**req.data)
-    user = User.objects.get(id=req.user.id)
-    user = UserSerializer(user).data
-      
-    return Response({'status':status.HTTP_200_OK, 'data': user})
+    if req.user and req.user.is_authenticated:
+      User.objects.filter(id=req.user.id).update(**req.data)
+      user = User.objects.get(id=req.user.id)
+      user = UserSerializer(user).data
+        
+      return Response({'status':status.HTTP_200_OK, 'data': user})
+    else:
+      return Response(status=status.HTTP_401_UNAUTHORIZED)
 
 class PostView(APIView):
   permission_classes = (Authenticate,)
