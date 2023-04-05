@@ -15,11 +15,11 @@ class AutheView(APIView):
       user = User.objects.create_user(username=username, **req.data)
       user = UserSerializer(user).data
 
-      return Response({'status':status.HTTP_201_CREATED, 'data': user})
+      return Response(user, status=status.HTTP_201_CREATED)
     except IntegrityError:
-      return Response({"status": status.HTTP_409_CONFLICT, "error":"phone already exists"})
+      return Response({"error":"phone already exists"}, status=status.HTTP_409_CONFLICT)
     except Exception as err:
-      return Response({'status': status.HTTP_400_BAD_REQUEST, 'error': str(err)})
+      return Response({'error': str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
   def put(self, req):
     if req.user and req.user.is_authenticated:
@@ -27,7 +27,7 @@ class AutheView(APIView):
       user = User.objects.get(id=req.user.id)
       user = UserSerializer(user).data
         
-      return Response({'status':status.HTTP_200_OK, 'data': user})
+      return Response(user, status=status.HTTP_200_OK)
     else:
       return Response(status=status.HTTP_401_UNAUTHORIZED)
 
@@ -54,33 +54,39 @@ class PostView(APIView):
       total_records = Comment.objects.filter(post_id=post['id']).count()
       pages = total_records // size
       if total_records % size > 0: pages +=1
-      post['comments'] = {'total_records': total_records,'pages': pages,'itmes':CommentSerializer(comments, many=True).data}
+      post['comments'] = {'total_records': total_records,'pages': pages,'data': CommentSerializer(comments, many=True).data}
 
       posts.append(post)
 
-    return Response({'status': status.HTTP_200_OK, 'posts': posts})
+    return Response(posts, status=status.HTTP_200_OK)
 
 
   def post(self, req):
-    image = req.data['image']
-    del req.data['image']
-   
-    data = { key: req.data[key] for key in req.data }
+    if 'image' in req.data:
+      image = req.data['image']
+      del req.data['image']
+    
+      data = { key: req.data[key] for key in req.data }
 
-    try:
-      with transaction.atomic():
-        post = Post.objects.create(author_id=req.user.id , **data)
-        post = PostSerializer(post).data
-        image_serializer = ImageSerializer(data={"image": image, "post": post['id']})
-        if image_serializer.is_valid():
-          image_serializer.save()
-        else:
-          transaction.set_rollback(True)
-          return Response({'status':status.HTTP_400_BAD_REQUEST, 'error':image_serializer.errors})
+      try:
+        with transaction.atomic():
+          post = Post.objects.create(author_id=req.user.id , **data)
+          post = PostSerializer(post).data
+          image_serializer = ImageSerializer(data={"image": image, "post": post['id']})
+          if image_serializer.is_valid():
+            image_serializer.save()
+          else:
+            transaction.set_rollback(True)
+            return Response({'error':image_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-        return Response({'status': status.HTTP_201_CREATED, 'post': {**post, 'image': image_serializer.data['image']}})
-    except Exception as err:
-      return Response({'status': status.HTTP_400_BAD_REQUEST, 'error': str(err)})
+          return Response({**post, 'image': image_serializer.data['image']}, status=status.HTTP_201_CREATED)
+      except Exception as err:
+        return Response({'error': str(err)}, status=status.HTTP_400_BAD_REQUEST)
+    else:
+      post = Post.objects.create(author_id=req.user.id , **data)
+      post = PostSerializer(post).data
+      return Response(post, status=status.HTTP_201_CREATED)
+    
 
   def put(self, req, post_id=None):
     if post_id is not None:
@@ -90,11 +96,11 @@ class PostView(APIView):
         post = Post.objects.get(id=post_id)
         post = PostSerializer(post).data
 
-        return Response({'status':status.HTTP_200_OK, 'post':post})
+        return Response(post, status=status.HTTP_200_OK)
       except Post.DoesNotExist:
-        return Response({'status': status.HTTP_404_NOT_FOUND, 'error': 'post not found'})
+        return Response({'error': 'post not found'}, status=status.HTTP_404_NOT_FOUND)
       except Exception as err:
-        return Response({'status': status.HTTP_400_BAD_REQUEST, 'error': str(err)})
+        return Response({'error': str(err)}, status=status.HTTP_400_BAD_REQUEST)
     else:
       return Response(status=status.HTTP_400_BAD_REQUEST)
     
@@ -105,9 +111,9 @@ class PostView(APIView):
         Post.objects.get(id=post_id).delete()
         return Response(status=status.HTTP_200_OK)
       except Post.DoesNotExist:
-        return Response({'status': status.HTTP_404_NOT_FOUND, 'error': 'post not found'})
+        return Response({'error': 'post not found'}, status=status.HTTP_404_NOT_FOUND)
       except Exception as err:
-        return Response({'status': status.HTTP_400_BAD_REQUEST, 'error': str(err)})
+        return Response({'error': str(err)}, status=status.HTTP_400_BAD_REQUEST)
     else:
       return Response(status=status.HTTP_400_BAD_REQUEST)
     
@@ -127,17 +133,17 @@ class CommentView(APIView):
       pages = total_records // size
       if total_records % size > 0: pages +=1
 
-      return Response({'status': status.HTTP_200_OK, 'total_records': total_records,'pages': pages,'itmes':comments})
+      return Response({'total_records': total_records,'pages': pages,'data':comments}, status=status.HTTP_200_OK)
     except Comment.DoesNotExist:
-      return Response({'status': status.HTTP_404_NOT_FOUND, 'error': 'post id not found'})
+      return Response({'error': 'post id not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as err:
-      return Response({'status': status.HTTP_400_BAD_REQUEST, 'error': str(err)})
+      return Response({'error': str(err)}, status=status.HTTP_400_BAD_REQUEST)
   
   def post(self, req, post_id=None):
     comment = Comment.objects.create(user_id= req.user.id, post_id=post_id , **req.data)
     comment = CommentSerializer(comment).data
-    print('post:', comment['post'])
-    return Response({'status': status.HTTP_201_CREATED, 'comment': comment})
+
+    return Response(comment, status=status.HTTP_201_CREATED)
   
   def put(self, req, comment_id=None):
     if comment_id is not None:
@@ -147,11 +153,11 @@ class CommentView(APIView):
         comment = Comment.objects.get(id=comment_id)
         comment = CommentSerializer(comment).data
 
-        return Response({'status':status.HTTP_200_OK, 'comment':comment})
+        return Response(comment, status=status.HTTP_200_OK)
       except Comment.DoesNotExist:
-        return Response({'status': status.HTTP_404_NOT_FOUND, 'error': 'comment not found'})
+        return Response({'error': 'comment not found'}, status=status.HTTP_404_NOT_FOUND)
       except Exception as err:
-        return Response({'status': status.HTTP_400_BAD_REQUEST, 'error': str(err)})
+        return Response({'error': str(err)}, status=status.HTTP_400_BAD_REQUEST)
     else:
       return Response(status=status.HTTP_400_BAD_REQUEST)
   
@@ -161,9 +167,9 @@ class CommentView(APIView):
         Comment.objects.get(id=comment_id, user_id=req.user.id).delete()
         return Response(status=status.HTTP_200_OK)
       except Comment.DoesNotExist:
-        return Response({'status': status.HTTP_404_NOT_FOUND, 'error': 'comment not found'})
+        return Response({'error': 'comment not found'}, status=status.HTTP_404_NOT_FOUND)
       except Exception as err:
-        return Response({'status': status.HTTP_400_BAD_REQUEST, 'error': str(err)})
+        return Response({'error': str(err)}, status=status.HTTP_400_BAD_REQUEST)
     else:
       return Response(status=status.HTTP_400_BAD_REQUEST)
     
@@ -171,10 +177,10 @@ class CommentView(APIView):
 class PostLikeView(APIView):
   def post(self, req, post_id):
     user_id = req.user.id
-    post_like = PostLike.objects.filter(post_id=post_id, user_id=user_id)
-    if len(post_like) == 0:
-      PostLike.objects.create(post_id=post_id, user_id=user_id)
+    post_like = PostLike.objects.filter(post_id=post_id, user_id=user_id).exists()
+    if post_like:
+      PostLike.objects.get(post_id=post_id, user_id=user_id).delete()
       return Response(status=status.HTTP_200_OK)
     else:
-      PostLike.objects.get(post_id=post_id, user_id=user_id).delete()
+      PostLike.objects.create(post_id=post_id, user_id=user_id)
       return Response(status=status.HTTP_200_OK)
