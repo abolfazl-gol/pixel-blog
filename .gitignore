@@ -1,4 +1,9 @@
 */migrations
+db.sqlite3
+*.rar
+templates
+static
+.idea
 */__pycache__/
 __pycache__/
 .env
