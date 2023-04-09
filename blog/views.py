@@ -1,35 +1,11 @@
 from .models import *
 from .serializers import *
+from django.db import transaction
 from django.shortcuts import render
-from django.contrib.auth.models import User
-from server.authenticate import Authenticate
-from django.db import IntegrityError, transaction
+from app.authenticate import Authenticate
 from rest_framework.views import APIView, Response, status
 from rest_framework.parsers import MultiPartParser, FormParser
 
-class AutheView(APIView):
-  def post(self, req):
-    username = req.data['phone']
-    del req.data['phone']
-    try:
-      user = User.objects.create_user(username=username, **req.data)
-      user = UserSerializer(user).data
-
-      return Response(user, status=status.HTTP_201_CREATED)
-    except IntegrityError:
-      return Response({"error":"phone already exists"}, status=status.HTTP_409_CONFLICT)
-    except Exception as err:
-      return Response({'error': str(err)}, status=status.HTTP_400_BAD_REQUEST)
-
-  def put(self, req):
-    if req.user and req.user.is_authenticated:
-      User.objects.filter(id=req.user.id).update(**req.data)
-      user = User.objects.get(id=req.user.id)
-      user = UserSerializer(user).data
-        
-      return Response(user, status=status.HTTP_200_OK)
-    else:
-      return Response(status=status.HTTP_401_UNAUTHORIZED)
 
 class PostView(APIView):
   permission_classes = (Authenticate,)

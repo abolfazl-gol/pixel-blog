@@ -44,12 +44,13 @@ class PostLike(models.Model):
     db_table = 'post_likes'
     unique_together = ('user_id', 'post_id')
 
+
 class Image(models.Model):
-  image = models.ImageField(upload_to='images')
+  image = models.ImageField(upload_to='blog/images')
   post = models.ForeignKey(Post, db_column='post_id', on_delete=models.CASCADE)
 
   class Meta:
-    db_table = 'images'
+    db_table = 'blog_images'
 
   def __str__(self):
-    return self.title
+    return self.image
