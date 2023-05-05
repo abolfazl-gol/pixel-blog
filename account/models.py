@@ -21,3 +21,19 @@ class Profile(models.Model):
 
     def __str__(self):
         return "id: {} ".format(self.user.id)
+    
+
+class Address(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    name = models.CharField(max_length=255)
+    address = models.CharField(max_length=255)
+    postal_code = models.CharField(max_length=255)
+    phone =models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'addresses'
+
+    def __str__(self):
+        return self.name
