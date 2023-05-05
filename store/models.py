@@ -1,11 +1,12 @@
 from django.db import models
+from account.models import Address
 from django.contrib.auth.models import User
 
-# todo custom user for extera data and login control
 # Create your models here.
+
 class Category(models.Model):
     name = models.CharField(max_length=250)
-
+    parent_id = models.IntegerField(default=0)
     class Meta:
         db_table = 'categorys'
     
@@ -20,7 +21,7 @@ class Product(models.Model):
     price = models.IntegerField()
     slug = models.SlugField(max_length=250, unique=True)
     description = models.TextField()
-    category = models.ForeignKey(Category, on_delete=models.PROTECT)
+    category = models.ForeignKey(Category, db_column='category_id', on_delete=models.PROTECT)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -31,7 +32,7 @@ class Product(models.Model):
         return self.name
     
 class Cart(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, db_column='user_id', on_delete=models.CASCADE)
     checkout = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -42,29 +43,14 @@ class Cart(models.Model):
     def __str__(self):
         return self.user.username
 
-class Address(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    name = models.CharField(max_length=255)
-    address = models.CharField(max_length=255)
-    postal_code = models.CharField(max_length=255)
-    phone =models.CharField(max_length=255)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = 'addresses'
-
-    def __str__(self):
-        return self.name
-
-
 class Order(models.Model):
-    cart = models.ForeignKey(Cart, on_delete=models.CASCADE)
-    address = models.ForeignKey(Address, on_delete=models.CASCADE)
-    status = models.CharField(max_length=255)
+    user = models.ForeignKey(User, db_column='user_id', on_delete=models.CASCADE)
+    cart = models.ForeignKey(Cart, db_column='cart_id', on_delete=models.CASCADE)
+    address = models.ForeignKey(Address, db_column='address_id', on_delete=models.CASCADE)
+    status = models.CharField(max_length=255, default='pending')
     total = models.IntegerField()
-    # payment_id = models.CharField(max_length=255)
-    # payment_status = models.CharField(max_length=255)
+    payment_id = models.CharField(max_length=255, default='')
+    payment_status = models.CharField(max_length=255, default='pending')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -75,8 +61,8 @@ class Order(models.Model):
         return self.total
 
 class CartProduct(models.Model):
-    cart = models.ForeignKey(Cart, on_delete=models.CASCADE,related_name='cart_products')
-    product = models.ForeignKey(Product,on_delete=models.CASCADE)
+    cart = models.ForeignKey(Cart, db_column='cart_id', on_delete=models.CASCADE,related_name='cart_products')
+    product = models.ForeignKey(Product, db_column='product_id', on_delete=models.CASCADE)
     price = models.IntegerField()
     quantity = models.PositiveSmallIntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -85,8 +71,11 @@ class CartProduct(models.Model):
     class Meta:
         db_table = 'cart_products'
 
+    def total(self):
+        return self.price * self.quantity
+
     def __str__(self):
-        return self.product
+        return self.product.name
     
 
 class Attribute(models.Model):
@@ -99,9 +88,20 @@ class Attribute(models.Model):
     def __str__(self):
         return self.name
 
+class Image(models.Model):
+  image = models.ImageField(upload_to='blog/images')
+  product = models.ForeignKey(Product, db_column='product_id', on_delete=models.CASCADE)
+
+  class Meta:
+    db_table = 'product_images'
+
+  def __str__(self):
+    return self.image
+  
+
 class AttributeValue(models.Model):
-    attribute = models.ForeignKey(Attribute, on_delete=models.CASCADE)
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    attribute = models.ForeignKey(Attribute, db_column='attribute_id', on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, db_column='product_id', on_delete=models.CASCADE)
     value = models.CharField(max_length=255)
     price = models.IntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -128,7 +128,7 @@ class CartProductValue(models.Model):
         return self.value
 
 class Payment(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, db_column='user_id', on_delete=models.CASCADE)
     amount = models.IntegerField()
     is_paid = models.BooleanField(default=False)
     authority = models.TextField()
@@ -140,14 +140,3 @@ class Payment(models.Model):
 
     def __str__(self):
         return self.amount
-    
-
-class Image(models.Model):
-  image = models.ImageField(upload_to='blog/images')
-  product = models.ForeignKey(Product, db_column='product_id', on_delete=models.CASCADE)
-
-  class Meta:
-    db_table = 'product_images'
-
-  def __str__(self):
-    return self.image
