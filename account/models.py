@@ -4,12 +4,8 @@ from django.contrib.auth.models import User
 
 class Profile(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="کاربری", related_name='profile')
-    # name = models.CharField(max_length=100, verbose_name="نام")
-    # family = models.CharField(max_length=100, null=True, verbose_name="نام خانوادگی")
-    # email = models.EmailField(max_length=100, verbose_name="ایمیل")
-
     phone = models.CharField(max_length=11, verbose_name="شماره همراه")
-    profile_image = models.ImageField(upload_to="account/images", null=True, verbose_name="عکس پروفایل")
+    profile_image = models.ImageField(upload_to="account/images", null=True, blank=True, verbose_name="عکس پروفایل")
     men = 1
     women = 2
     noidea = 3
@@ -18,10 +14,10 @@ class Profile(models.Model):
     born_date = models.DateField(verbose_name="تاریخ تولد", null=True)
     credit = models.IntegerField(verbose_name="اعتبار", default=0)
 
-    def __str__(self):
-        return "نام کاربر:  {} {} ".format(self.User.first_name, self.User.last_name)
-
     class Meta:
         db_table = 'profiles'
         verbose_name = "کاربر"
         verbose_name_plural = "کاربران"
+
+    def __str__(self):
+        return "id: {} ".format(self.user.id)
